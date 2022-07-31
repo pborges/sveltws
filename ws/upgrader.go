@@ -81,7 +81,7 @@ func (c *Context) Write(buf []byte) (int, error) {
 func (c *Context) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.u.logln("[WS !!] Close", len(c.cleanup))
+	c.u.logln("[WS !!] Close", "cleanup:", len(c.cleanup))
 	for _, fn := range c.cleanup {
 		fn()
 	}

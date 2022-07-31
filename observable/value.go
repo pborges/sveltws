@@ -59,6 +59,7 @@ func (v *Value[V]) Subscribe() *Subscription[V] {
 	defer v.mu.Unlock()
 	sub := &Subscription[V]{
 		ch: make(chan V),
+		v:  v,
 	}
 	sub.C = sub.ch
 	v.subs = append(v.subs, sub)

@@ -7,9 +7,6 @@ type Subscription[V any] struct {
 }
 
 func (s *Subscription[V]) Close() {
-	if s.v == nil {
-		return
-	}
 	s.v.mu.Lock()
 	defer s.v.mu.Unlock()
 	for i, sub := range s.v.subs {

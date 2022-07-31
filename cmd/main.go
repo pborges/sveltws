@@ -43,6 +43,7 @@ func (c ctxShim) Notify(method string, params any) {
 
 func main() {
 	db := observable.Map[Name, Person]{}
+	subs := map[Name]*observable.Subscription[Person]{}
 
 	go func() {
 		for range time.NewTicker(1 * time.Second).C {
@@ -69,6 +70,7 @@ func main() {
 		v, _ := db.Get(param)
 
 		sub := db.Subscribe(param)
+		subs[param] = sub
 		ctx.OnDisconnect(sub.Close)
 		go func() {
 			for v := range sub.C {
@@ -89,6 +91,19 @@ func main() {
 		v.Age = 0
 		db.Set(param, v)
 		return true, nil
+	})
+
+	mux.Handle("unsubscribe", func(ctx rpc.Context, req rpc.Request) (any, error) {
+		var param Name
+		if err := json.Unmarshal(req.Params, &param); err != nil {
+			return nil, err
+		}
+		sub, ok := subs[param]
+		if ok {
+			delete(subs, param)
+			sub.Close()
+		}
+		return ok, nil
 	})
 
 	upgrader := ws.Upgrader{
