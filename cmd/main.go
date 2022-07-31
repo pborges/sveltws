@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"test/entity"
 	"test/entity/person"
 	"test/rpc"
@@ -14,7 +15,8 @@ import (
 type ctxShim struct {
 	*ws.Context
 	*rpc.Mux
-	subs map[string]entity.Closer
+	subs  map[string]entity.Closer
+	subMu *sync.Mutex
 }
 
 func (c ctxShim) Notify(method string, params any) {
@@ -25,17 +27,23 @@ func (c ctxShim) Notify(method string, params any) {
 }
 
 func (c ctxShim) RegisterSubscription(id string, sub entity.Closer) {
+	c.subMu.Lock()
+	defer c.subMu.Unlock()
 	c.subs[id] = sub
 }
 
 func main() {
 	subs := map[string]entity.Closer{}
+	subMu := sync.Mutex{}
 
 	mux := rpc.Mux{}
 	mux.Handle("person.get", person.HandleGet)
 	mux.Handle("person.reset", person.HandleReset)
 
 	mux.Handle("unsubscribe", func(ctx rpc.Context, req rpc.Request) (any, error) {
+		subMu.Lock()
+		defer subMu.Unlock()
+
 		var id string
 		if err := json.Unmarshal(req.Params, &id); err != nil {
 			return nil, err
@@ -51,7 +59,7 @@ func main() {
 	upgrader := ws.Upgrader{
 		Log: log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile),
 		OnMessage: func(ctx *ws.Context, buf []byte) {
-			shim := ctxShim{Context: ctx, Mux: &mux, subs: subs}
+			shim := ctxShim{Context: ctx, Mux: &mux, subs: subs, subMu: &subMu}
 			go mux.Dispatch(shim, buf)
 		},
 	}
