@@ -1,5 +1,6 @@
 import rpc from "./rpc"
 import createStore, {Actionable, Keyed} from "./store"
+import {nanoid} from "nanoid";
 
 interface Name {
     first: string
@@ -24,8 +25,9 @@ const people = createStore<Name, Person>(
     Person,
     "person.get",
     ({key, resolve, reject}) => {
-        rpc.send("person.get", key).then(resolve).catch(reject)
-        return () => rpc.send("unsubscribe", key).then(resolve).catch(reject)
+        const subscriptionId: string = nanoid()
+        rpc.send("person.get", {...key, subscribe: subscriptionId}).then(resolve).catch(reject)
+        return () => rpc.send("unsubscribe", subscriptionId).then(resolve).catch(reject)
     }
 )
 
